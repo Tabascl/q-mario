@@ -11,7 +11,7 @@ from keras.models import Sequential
 class Brain:
     def __init__(self, state_size, action_size):
         self.model = Sequential()
-        self.model.add(Dense(32, input_dim=state_size, activation='relu'))
+        self.model.add(Dense(32, input_shape=state_size, activation='relu'))
         self.model.add(Dense(32, activation='relu'))
         #self.model.add(CuDNNGRU(32))
         self.model.add(Dense(action_size, activation='linear'))
@@ -35,6 +35,9 @@ class Agent:
             return np.random.choice([0,1], self.action_size)
 
         act_values = self.brain.model.predict(state)
+        print(act_values.shape)
+        print(np.argmax(act_values))
+        print(np.argmax(act_values[0]))
         return np.argmax(act_values[0])
 
     def remember(self, state, action, reward, next_state, done):
@@ -64,7 +67,7 @@ class Mario:
         self.epochs = 10000
         self.env = gym.make('SuperMarioBros-1-1-v0')
 
-        self.state_size = self.env.observation_space.shape[0]
+        self.state_size = self.env.observation_space.shape
         self.action_size = self.env.action_space.shape
         self.agent = Agent(self.state_size, self.action_size)
 
@@ -72,6 +75,7 @@ class Mario:
         try:
             for index_epoch in range(self.epochs):
                 state = self.env.reset()
+                state = np.expand_dims(state, axis=0)
 
                 done = False
                 index = 0
@@ -81,6 +85,7 @@ class Mario:
                     action = self.agent.act(state)
 
                     next_state, reward, done, _ = self.env.step(action)
+                    next_state = np.expand_dims(next_state, axis=0)
                     self.agent.remember(
                         state, action, reward, next_state, done)
                     state = next_state
