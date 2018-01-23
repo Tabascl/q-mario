@@ -4,17 +4,21 @@ from multiprocessing import Lock
 
 import gym
 import numpy as np
-from keras.layers import CuDNNGRU, Dense
+from keras.layers import CuDNNGRU, Dense, Reshape, Conv2D, Permute
 from keras.models import Sequential
 
 
 class Brain:
     def __init__(self, state_size, action_size):
         self.model = Sequential()
-        self.model.add(Dense(32, input_shape=state_size, activation='relu'))
-        self.model.add(Dense(32, activation='relu'))
+        # self.model.add(Dense(32, input_shape=state_size, activation='relu'))
+        self.model.add(Conv2D(32, (8, 8), strides=(4,4), activation='relu', input_shape=state_size))
+        self.model.add(Conv2D(64, (4, 4), strides=(2,2), activation='relu'))
+        self.model.add(Conv2D(64, (3, 3), strides=(1,1), activation='relu'))
+        self.model.add(Dense(128, activation='relu'))
         #self.model.add(CuDNNGRU(32))
         self.model.add(Dense(action_size, activation='linear'))
+        # self.model.add(Reshape((-1, action_size)))
 
         self.model.compile(loss='mse', optimizer='Adam')
 
@@ -31,13 +35,18 @@ class Agent:
         self.brain = Brain(self.state_size, self.action_size)
 
     def act(self, state):
-        if np.random.rand() <= self.exploration_rate:
-            return np.random.choice([0,1], self.action_size)
+        # if np.random.rand() <= self.exploration_rate:
+        #     return np.random.choice([0,1], self.action_size)
 
+        # act_values = self.brain.model.predict(state)
+        # action = np.argmax(act_values[0][0])
         act_values = self.brain.model.predict(state)
-        action = np.argmax(act_values[0])
+        print(act_values.shape)
+        action = np.argmax(act_values)
+        print(action)
         action_tensor = np.zeros(self.action_size)
         action_tensor[action] = 1
+
         return action_tensor
 
     def remember(self, state, action, reward, next_state, done):
