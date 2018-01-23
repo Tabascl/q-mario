@@ -35,7 +35,10 @@ class Agent:
             return np.random.choice([0,1], self.action_size)
 
         act_values = self.brain.model.predict(state)
-        return np.argmax(act_values[0])
+        action = np.argmax(act_values[0])
+        action_tensor = np.zeros(self.action_size)
+        action_tensor[action] = 1
+        return action_tensor
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
