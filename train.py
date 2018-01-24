@@ -1,24 +1,25 @@
+import os
 import random
 from collections import deque
 from multiprocessing import Lock
 
 import gym
 import numpy as np
-from keras.layers import CuDNNGRU, Dense, Reshape, Conv2D, Permute
+from keras.callbacks import TensorBoard
+from keras.layers import Conv2D, CuDNNGRU, Dense, Flatten
 from keras.models import Sequential
 
 
 class Brain:
     def __init__(self, state_size, action_size):
         self.model = Sequential()
-        # self.model.add(Dense(32, input_shape=state_size, activation='relu'))
         self.model.add(Conv2D(32, (8, 8), strides=(4,4), activation='relu', input_shape=state_size))
         self.model.add(Conv2D(64, (4, 4), strides=(2,2), activation='relu'))
         self.model.add(Conv2D(64, (3, 3), strides=(1,1), activation='relu'))
-        self.model.add(Dense(128, activation='relu'))
-        #self.model.add(CuDNNGRU(32))
+        self.model.add(Dense(512, activation='relu'))
+        # self.model.add(CuDNNGRU(256))
+        self.model.add(Flatten())
         self.model.add(Dense(action_size, activation='linear'))
-        # self.model.add(Reshape((-1, action_size)))
 
         self.model.compile(loss='mse', optimizer='Adam')
 
@@ -26,6 +27,7 @@ class Brain:
 class Agent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
+        self.weight_backup = 'mario_weight.h5'
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
         self.gamma = 0.95
@@ -34,16 +36,18 @@ class Agent:
         self.exploration_decay = 0.995
         self.brain = Brain(self.state_size, self.action_size)
 
-    def act(self, state):
-        # if np.random.rand() <= self.exploration_rate:
-        #     return np.random.choice([0,1], self.action_size)
+        if os.path.isfile(self.weight_backup):
+            self.brain.model.load_weights(self.weight_backup)
+            self.exploration_rate = self.exploration_rate_min
 
-        # act_values = self.brain.model.predict(state)
-        # action = np.argmax(act_values[0][0])
+    def act(self, state):
+        if state[0] is not None and state[0].shape != self.state_size:
+            return np.zeros(self.action_size)
+        if np.random.rand() <= self.exploration_rate:
+            return np.random.choice([0,1], self.action_size)
+
         act_values = self.brain.model.predict(state)
-        print(act_values.shape)
-        action = np.argmax(act_values)
-        print(action)
+        action = np.argmax(act_values[0])
         action_tensor = np.zeros(self.action_size)
         action_tensor[action] = 1
 
@@ -53,21 +57,29 @@ class Agent:
         self.memory.append((state, action, reward, next_state, done))
 
     def replay(self, sample_batch_size):
+        print('#'*15, 'LEARNING', '#'*15)
         if len(self.memory) < sample_batch_size:
             return
 
         sample_batch = random.sample(self.memory, sample_batch_size)
         for state, action, reward, next_state, done in sample_batch:
+            if state[0] is not None and state[0].shape != self.state_size:
+                continue
             target = reward
             if not done:
                 target = reward + self.gamma * \
                     np.amax(self.brain.model.predict(next_state)[0])
             target_f = self.brain.model.predict(state)
-            target_f[0][action] = target
+            target_f_action = np.argmax(target_f[0])
+            target_f_onehot = np.zeros(self.action_size)
+            target_f_onehot[target_f_action] = reward
             self.brain.model.fit(state, target_f, epochs=1, verbose=0)
 
         if self.exploration_rate > self.exploration_rate_min:
             self.exploration_rate *= self.exploration_decay
+
+    def save_model(self):
+        self.brain.model.save(self.weight_backup)
 
 
 class Mario:
@@ -91,6 +103,9 @@ class Mario:
                 while not done:
                     self.env.render()
 
+                    if state[0] is not None and state[0].shape != self.state_size:
+                        continue
+
                     action = self.agent.act(state)
 
                     next_state, reward, done, _ = self.env.step(action)
@@ -103,7 +118,7 @@ class Mario:
                 print("Episode {}# Score: {}".format(index_epoch, index + 1))
                 self.agent.replay(self.sample_batch_size)
         finally:
-            pass
+            self.agent.save_model()
 
 
 if __name__ == '__main__':
