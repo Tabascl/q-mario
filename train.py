@@ -41,12 +41,13 @@ class Agent:
             self.exploration_rate = self.exploration_rate_min
 
     def act(self, state):
-        if state[0] is not None and state[0].shape != self.state_size:
-            return np.zeros(self.action_size)
         if np.random.rand() <= self.exploration_rate:
             return np.random.choice([0,1], self.action_size)
-
-        act_values = self.brain.model.predict(state)
+        
+        try:
+            act_values = self.brain.model.predict(state)
+        except ValueError:
+            return np.zeros(self.action_size)
         action = np.argmax(act_values[0])
         action_tensor = np.zeros(self.action_size)
         action_tensor[action] = 1
@@ -63,13 +64,14 @@ class Agent:
 
         sample_batch = random.sample(self.memory, sample_batch_size)
         for state, action, reward, next_state, done in sample_batch:
-            if state[0] is not None and state[0].shape != self.state_size:
-                continue
             target = reward
             if not done:
                 target = reward + self.gamma * \
                     np.amax(self.brain.model.predict(next_state)[0])
-            target_f = self.brain.model.predict(state)
+            try:
+                target_f = self.brain.model.predict(state)
+            except ValueError:
+                continue
             target_f_action = np.argmax(target_f[0])
             target_f_onehot = np.zeros(self.action_size)
             target_f_onehot[target_f_action] = reward
@@ -102,12 +104,11 @@ class Mario:
                 index = 0
                 while not done:
                     self.env.render()
-
-                    if state[0] is not None and state[0].shape != self.state_size:
+                    try:
+                        action = self.agent.act(state)
+                    except:
                         continue
-
-                    action = self.agent.act(state)
-
+                    
                     next_state, reward, done, _ = self.env.step(action)
                     next_state = np.expand_dims(next_state, axis=0)
                     self.agent.remember(
