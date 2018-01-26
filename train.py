@@ -8,6 +8,7 @@ import numpy as np
 from keras.callbacks import TensorBoard
 from keras.layers import Conv2D, CuDNNGRU, Dense, Flatten
 from keras.models import Sequential
+from keras.losses import mean_squared_error
 
 
 class Brain:
@@ -72,10 +73,15 @@ class Agent:
                 target_f = self.brain.model.predict(state)
             except ValueError:
                 continue
-            target_f_action = np.argmax(target_f[0])
-            target_f_onehot = np.zeros(self.action_size)
-            target_f_onehot[target_f_action] = reward
-            self.brain.model.fit(state, target_f, epochs=1, verbose=0)
+
+            target_t = np.copy(target_f)
+            target_t[0][np.argmax(action)] = target
+            error = mean_squared_error(target_t, target_f)
+            print("True:", target_t)
+            print("Predicted:", target_f)
+            print("Loss:", error)
+
+            self.brain.model.fit(state, target_t, epochs=1, verbose=0)
 
         if self.exploration_rate > self.exploration_rate_min:
             self.exploration_rate *= self.exploration_decay
@@ -102,8 +108,9 @@ class Mario:
 
                 done = False
                 index = 0
+                print("Playing with exploration_rate {}...".format(self.agent.exploration_rate))
                 while not done:
-                    self.env.render()
+                    # self.env.render()
                     try:
                         action = self.agent.act(state)
                     except:
