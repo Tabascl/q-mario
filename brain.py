@@ -2,9 +2,12 @@ from keras.models import Sequential
 from keras.layers import Conv2D, Dense, Flatten
 
 class Brain:
-    def __init__(self, state_cnt, action_cnt):
+    def __init__(self, state_cnt, action_cnt, img_stack, img_width, img_height):
         self.state_cnt = state_cnt
         self.action_cnt = action_cnt
+        self.img_stack = img_stack
+        self.img_width = img_width
+        self.img_height = img_height
 
         self.model = self._create_model()
         self._model = self._create_model() # target network
@@ -33,7 +36,7 @@ class Brain:
             return self.model.predict(s)
 
     def predict_one(self, s, target=False):
-        raise NotImplementedError()
+        return self.predict(s.reshape(1, self.img_stack, self.img_width, self.img_height), target).flatten()
 
     def update_target_model(self):
         self._model.set_weights(self.model.get_weights())
