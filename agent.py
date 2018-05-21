@@ -2,6 +2,7 @@ import random, math
 from collections import deque
 import numpy as np
 from brain import Brain
+from memory import Memory
 
 MAX_EPSILON = 1
 MIN_EPSILON = 0.1
@@ -25,7 +26,7 @@ class Agent:
         self.img_width = img_width
         self.img_height = img_height
 
-        self.memory = deque(maxlen=200000)
+        self.memory = Memory(200000)
 
         self.brain = Brain(state_cnt, action_cnt, img_stack, img_width,
                            img_height)
@@ -38,7 +39,7 @@ class Agent:
 
     def observe(self, sample):
         x, y, errors = self._get_targets([(0, sample)])
-        self.memory.append((errors[0], sample))
+        self.memory.add(errors[0], sample)
 
         if self.steps % UPDATE_TARGET_FREQ == 0:
             self.brain.update_target_model()
@@ -79,9 +80,11 @@ class Agent:
         return (x, y, errors)
     
     def replay(self):
-        batch = random.sample(self.memory, BATCH_SIZE)
+        batch = self.memory.sample(BATCH_SIZE)
         x, y, errors = self._get_targets(batch)
 
         for i in range(len(batch)):
             idx = batch[i][0]
-            self.memory
+            self.memory.update(idx, errors[i])
+
+        self.brain.train(x, y)
