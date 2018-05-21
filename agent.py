@@ -26,7 +26,7 @@ class Agent:
         self.img_width = img_width
         self.img_height = img_height
 
-        self.memory = Memory(200000)
+        self.memory = Memory(10000)
 
         self.brain = Brain(state_cnt, action_cnt, img_stack, img_width,
                            img_height)

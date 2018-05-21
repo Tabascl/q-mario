@@ -15,14 +15,14 @@ class Brain:
     def _create_model(self):
         model = Sequential()
 
-        model.add(Conv2D(32, (8,8), strides=(4,4), activation='relu', input_shape=self.state_cnt))
+        model.add(Conv2D(32, (8,8), strides=(4,4), activation='relu', input_shape=(self.state_cnt), data_format='channels_first'))
         model.add(Conv2D(64, (4,4), strides=(2,2), activation='relu'))
         model.add(Conv2D(64, (3,3), activation='relu'))
         model.add(Flatten())
-        model.add(Dense(512, 'relu'))
-        model.add(Dense(self.action_cnt, 'linear'))
+        model.add(Dense(512, activation='relu'))
+        model.add(Dense(self.action_cnt, activation='linear'))
 
-        model.compile('adam', 'softmax')
+        model.compile('adam', 'mse')
 
         return model
 
