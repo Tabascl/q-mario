@@ -1,4 +1,4 @@
-import random
+import random, math
 from collections import deque
 import numpy as np
 from brain import Brain
@@ -7,6 +7,12 @@ MAX_EPSILON = 1
 MIN_EPSILON = 0.1
 
 GAMMA = 0.99
+UPDATE_TARGET_FREQ = 10000
+
+EXPLORATION_STOP = 500000
+LAMBDA = - math.log(0.01) / EXPLORATION_STOP
+
+BATCH_SIZE = 32
 
 class Agent:
     steps = 0
@@ -33,6 +39,12 @@ class Agent:
     def observe(self, sample):
         x, y, errors = self._get_targets([(0, sample)])
         self.memory.append((errors[0], sample))
+
+        if self.steps % UPDATE_TARGET_FREQ == 0:
+            self.brain.update_target_model()
+
+        self.steps += 1
+        self.epsilon = MIN_EPSILON + (MAX_EPSILON - MIN_EPSILON) * math.exp(-LAMBDA * self.steps)
 
     def _get_targets(self, batch):
         no_state = np.zeros(self.state_cnt)
@@ -65,3 +77,11 @@ class Agent:
             errors[i] = abs(old_val - t[a])
         
         return (x, y, errors)
+    
+    def replay(self):
+        batch = random.sample(self.memory, BATCH_SIZE)
+        x, y, errors = self._get_targets(batch)
+
+        for i in range(len(batch)):
+            idx = batch[i][0]
+            self.memory
